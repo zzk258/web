@@ -1,0 +1,16 @@
+﻿img{
+    width:50px;
+    height:50px;
+
+}
+
+
+ol{
+    width:100px;
+    height:200px;
+   
+}
+
+ol li{
+    border:1px solid;
+}
