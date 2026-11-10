@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TechNotes · 网络与运维技术文档</title>
+<meta name="description" content="网络与运维方向的技术文档库：配置实录、协议分析、排障过程与可复用脚本。">
+<meta name="theme-color" content="#f7f8fa">
+<link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/css/main.css">
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem("notes-theme");
+      if (!t) t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  })();
+</script>
+</head>
+<body>
+
+<header id="site-header"></header>
+
+<main>
+  <!-- ================= 首屏 ================= -->
+  <section class="hero">
+    <div class="wrap hero-inner">
+      <div class="hero-copy">
+        <span class="eyebrow">Tech Notes · 持续更新</span>
+        <h1>把踩过的坑<br>写成能复用的文档</h1>
+        <p class="hero-sub" id="hero-sub">网络与运维的技术笔记：配置片段、抓包结论、故障复盘，都留在这里。</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#archive">浏览全部日志</a>
+          <a class="btn btn-ghost" href="editor.html"></a>
+        </div>
+        <div class="hero-stats" id="hero-stats"></div>
+      </div>
+
+      <div class="hero-panel" aria-hidden="true">
+        <div class="panel-bar"><span></span><span></span><span></span><em>~/notes</em></div>
+        <div class="panel-body" id="hero-panel"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 版块 ================= -->
+  <section class="section wrap" id="categories">
+    <div class="section-head">
+      <div>
+        <h2><span class="num">01</span>版块</h2>
+        <p>按方向归档，点进去看该方向的全部日志</p>
+      </div>
+    </div>
+    <div class="cat-grid" id="cat-grid"></div>
+  </section>
+
+  <!-- ================= 最新 ================= -->
+  <section class="section wrap" id="latest">
+    <div class="section-head">
+      <div>
+        <h2><span class="num">02</span>最新日志</h2>
+        <p>最近写下的几篇，按时间倒序</p>
+      </div>
+      <a class="more" href="#archive">全部<span id="latest-more"></span></a>
+    </div>
+    <div class="timeline" id="latest-list"></div>
+  </section>
+
+  <!-- ================= 归档 ================= -->
+  <section class="section wrap" id="archive">
+    <div class="section-head">
+      <div>
+        <h2><span class="num">03</span>全部日志</h2>
+        <p>支持按版块筛选与关键词搜索</p>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <button class="chip" data-filter="all" aria-pressed="true">全部 <span class="n" id="n-all">0</span></button>
+      <div id="cat-filters" style="display:contents"></div>
+      <div class="search">
+        <span class="ic"></span>
+        <input type="search" id="q" placeholder="搜索标题、摘要、标签…" autocomplete="off">
+      </div>
+    </div>
+
+    <div class="timeline" id="archive-list"></div>
+    <div style="text-align:center;margin-top:18px">
+      <button class="btn btn-ghost btn-sm" id="load-more" hidden>加载更多</button>
+    </div>
+  </section>
+</main>
+
+<div id="site-footer"></div>
+<div class="lightbox" id="lightbox"></div>
+
+<!-- 添加版块说明弹窗 -->
+<dialog id="cat-dialog">
+  <h3>添加新版块</h3>
+  <p>版块不写死在页面里，导航、卡片、筛选项都会自动跟着数据走。打开 <code>data/posts.js</code>，在 <code>window.CATEGORIES</code> 数组里加一项即可：</p>
+  <pre id="cat-snippet"></pre>
+  <p style="font-size:12.5px;color:var(--text-3)">加完保存、推送到 GitHub，顶部导航就会多出一个入口。图标名可选：network / server / cloud / code / terminal / db / shield / folder。</p>
+  <div class="dialog-actions">
+    <button class="btn btn-ghost btn-sm" id="cat-copy">复制代码</button>
+    <button class="btn btn-primary btn-sm" id="cat-close">知道了</button>
+  </div>
+</dialog>
+
+<script src="data/posts.js"></script>
+<script src="assets/js/site.js"></script>
+<script>
+(function () {
+  var A = window.App;
+  var SITE = A.SITE, CATS = A.CATS;
+  var all = A.sortedPosts();
+
+  document.querySelector(".search .ic").innerHTML = A.icon("search");
+
+  /* ---------- 首屏文案 ---------- */
+  if (SITE.description) {
+    document.getElementById("hero-sub").textContent = SITE.description;
+  }
+  var heroEditBtn = document.querySelector(".hero-actions .btn-ghost");
+  if (A.editorHref) {
+    heroEditBtn.href = A.editorHref;
+    heroEditBtn.innerHTML = A.icon("pencil") + "写一篇日志";
+  } else {
+    heroEditBtn.style.display = "none";
+  }
+
+  /* ---------- 首屏统计 ---------- */
+  var lastDate = all.length ? A.fmtDate(all[0].date) : "—";
+  document.getElementById("hero-stats").innerHTML =
+    '<div class="st"><strong>' + all.length + '</strong><span>篇文档</span></div>' +
+    '<div class="st"><strong>' + CATS.length + '</strong><span>个版块</span></div>' +
+    '<div class="st"><strong style="font-size:15px;line-height:1.9">' + lastDate + '</strong><span>最近更新</span></div>';
+
+  /* ---------- 终端面板 ---------- */
+  var recent = all.slice(0, 3);
+  var panel =
+    '<div class="panel-line"><span class="p">$</span>ls categories/</div>' +
+    '<div class="panel-line out">' + CATS.map(function (c) { return c.id + "/"; }).join("&nbsp;&nbsp;") + '</div>' +
+    '<div class="panel-line"><span class="p">$</span>tail -n 3 notes.log</div>' +
+    recent.map(function (p) {
+      return '<div class="panel-line out"><b>' + p.date + '</b>&nbsp; ' + A.esc(p.title) + '</div>';
+    }).join("") +
+    '<div class="panel-line"><span class="p">$</span><span class="cursor"></span></div>';
+  document.getElementById("hero-panel").innerHTML = panel;
+
+  /* ---------- 版块卡片 ---------- */
+  var grid = document.getElementById("cat-grid");
+  grid.innerHTML = CATS.map(function (c) {
+    var n = A.postsOf(c.id).length;
+    return '<a class="cat-card" href="' + A.catUrl(c.id) + '" style="--c:' + c.color + '">' +
+      '<span class="cat-icon">' + A.icon(c.icon) + '</span>' +
+      '<h3>' + A.esc(c.name) + '</h3>' +
+      '<p>' + A.esc(c.desc || "") + '</p>' +
+      '<span class="cat-meta"><span>' + (n < 10 ? "0" + n : n) + ' 篇</span>' +
+      '<span class="go">进入' + A.icon("arrowRight") + '</span></span>' +
+      '</a>';
+  }).join("") +
+  '<button class="cat-card add" id="open-cat-dialog" type="button">' +
+  '<span class="cat-icon">' + A.icon("plus") + '</span>' +
+  '<h3>添加版块</h3>' +
+  '<p>后续扩展新方向，往数据里加一项即可自动生效</p>' +
+  '<span class="cat-meta"><span>可扩展</span><span class="go">查看做法' + A.icon("arrowRight") + '</span></span>' +
+  '</button>';
+
+  /* ---------- 最新日志 ---------- */
+  document.getElementById("latest-list").innerHTML =
+    all.slice(0, 4).map(A.postRow).join("") ||
+    '<div class="empty">还没有日志，去 <a href="' + (A.editorHref || "#archive") + '">' +
+    (A.editorHref ? "写第一篇" : "看看全部日志") + "</a> 吧。</div>";
+  document.getElementById("latest-more").textContent = " " + all.length;
+
+  /* ---------- 归档 + 筛选 ---------- */
+  var state = { cat: "all", q: "", limit: 8 };
+  document.getElementById("n-all").textContent = all.length;
+
+  document.getElementById("cat-filters").innerHTML = CATS.map(function (c) {
+    return '<button class="chip" data-filter="' + c.id + '" aria-pressed="false">' +
+      A.esc(c.name) + ' <span class="n">' + A.postsOf(c.id).length + '</span></button>';
+  }).join("");
+
+  function matched() {
+    var q = state.q.trim().toLowerCase();
+    return all.filter(function (p) {
+      if (state.cat !== "all" && p.category !== state.cat) return false;
+      if (!q) return true;
+      var hay = [p.title, p.excerpt, (p.tags || []).join(" "), p.content || ""].join(" ").toLowerCase();
+      return hay.indexOf(q) > -1;
+    });
+  }
+
+  function renderArchive() {
+    var list = matched();
+    var shown = list.slice(0, state.limit);
+    var box = document.getElementById("archive-list");
+    box.innerHTML = shown.length
+      ? shown.map(A.postRow).join("")
+      : '<div class="empty">没有匹配的日志，换个关键词试试。</div>';
+    var more = document.getElementById("load-more");
+    more.hidden = list.length <= state.limit;
+    more.textContent = "加载更多（还有 " + Math.max(0, list.length - state.limit) + " 篇）";
+  }
+
+  document.querySelectorAll("[data-filter]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      state.cat = btn.getAttribute("data-filter");
+      state.limit = 8;
+      document.querySelectorAll("[data-filter]").forEach(function (b) {
+        b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+      });
+      renderArchive();
+    });
+  });
+
+  var timer = null;
+  document.getElementById("q").addEventListener("input", function (e) {
+    clearTimeout(timer);
+    var v = e.target.value;
+    timer = setTimeout(function () {
+      state.q = v;
+      state.limit = 8;
+      renderArchive();
+    }, 140);
+  });
+
+  document.getElementById("load-more").addEventListener("click", function () {
+    state.limit += 10;
+    renderArchive();
+  });
+
+  renderArchive();
+
+  /* ---------- 添加版块弹窗 ---------- */
+  var dlg = document.getElementById("cat-dialog");
+  var snippet =
+    '{\n' +
+    '  id: "cloud",\n' +
+    '  name: "云原生",\n' +
+    '  icon: "cloud",\n' +
+    '  color: "#8b5cf6",\n' +
+    '  desc: "K8s、CI/CD、可观测性相关笔记。"\n' +
+    '}';
+  document.getElementById("cat-snippet").textContent = snippet;
+  document.getElementById("open-cat-dialog").addEventListener("click", function () {
+    if (dlg.showModal) dlg.showModal();
+  });
+  document.getElementById("cat-close").addEventListener("click", function () { dlg.close(); });
+  document.getElementById("cat-copy").addEventListener("click", function () {
+    navigator.clipboard.writeText(snippet).then(function () {
+      document.getElementById("cat-copy").textContent = "已复制";
+      setTimeout(function () { document.getElementById("cat-copy").textContent = "复制代码"; }, 1600);
+    });
+  });
+})();
+</script>
+</body>
+</html>

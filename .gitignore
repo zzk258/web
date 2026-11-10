@@ -1,0 +1,10 @@
+# 工作区/编辑器产生的临时目录，不要推到 GitHub
+.workbuddy/
+node_modules/
+Thumbs.db
+.DS_Store
+*.log
+
+# 本地写作工具与后端服务：只留在本机，永远不要 git 提交 / 推送
+local-tools/
+serve.py

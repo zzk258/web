@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>日志 · TechNotes</title>
+<meta name="description" content="技术日志详情">
+<link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/css/main.css">
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem("notes-theme");
+      if (!t) t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  })();
+</script>
+</head>
+<body>
+
+<header id="site-header"></header>
+
+<main class="wrap">
+  <div class="article-layout">
+    <article id="article">
+      <div id="article-head"></div>
+      <div class="prose" id="content"></div>
+      <nav class="pager" id="pager" hidden></nav>
+    </article>
+    <aside class="toc" id="toc"></aside>
+  </div>
+</main>
+
+<div id="site-footer"></div>
+<div class="lightbox" id="lightbox"></div>
+
+<script src="data/posts.js"></script>
+<script src="assets/js/site.js"></script>
+<script>
+(function () {
+  var A = window.App;
+  var id = new URLSearchParams(location.search).get("id");
+  var list = A.sortedPosts();
+  var post = null;
+  for (var i = 0; i < list.length; i++) { if (list[i].id === id) { post = list[i]; break; } }
+
+  var headEl = document.getElementById("article-head");
+  var contentEl = document.getElementById("content");
+  var pagerEl = document.getElementById("pager");
+
+  if (!post) {
+    headEl.innerHTML = '<div class="breadcrumb"><a href="index.html">首页</a>' + A.icon("chevron") + '<span>未找到</span></div>';
+    contentEl.innerHTML = '<div class="empty">这篇日志不存在，可能链接有误或已被删除。<br><br><a class="btn btn-ghost btn-sm" href="index.html">返回首页</a></div>';
+    document.title = "未找到 · " + (A.SITE.title || "TechNotes");
+    return;
+  }
+
+  var cat = A.catById(post.category);
+  document.title = post.title + " · " + (A.SITE.title || "TechNotes");
+  var meta = document.querySelector('meta[name="description"]');
+  if (meta) meta.setAttribute("content", post.excerpt || post.title);
+
+  /* ---- 头部 ---- */
+  var metaBits = [
+    '<span>' + A.esc(A.fmtDate(post.date)) + '</span>',
+    '<span class="sep">/</span>',
+    '<span>' + A.readingTime(post.content) + ' 分钟阅读</span>'
+  ];
+  if (post.tags && post.tags.length) {
+    metaBits.push('<span class="sep">/</span>');
+    metaBits.push('<span class="tag-list">' + post.tags.map(function (t) {
+      return '<span class="tag">' + A.esc(t) + '</span>';
+    }).join("") + '</span>');
+  }
+
+  headEl.innerHTML =
+    '<div class="breadcrumb">' +
+    '<a href="index.html">首页</a>' + A.icon("chevron") +
+    '<a href="' + A.catUrl(cat.id) + '">' + A.esc(cat.name) + '</a>' +
+    A.icon("chevron") + '<span>正文</span></div>' +
+    '<h1 class="article-title">' + A.esc(post.title) + '</h1>' +
+    '<div class="article-meta">' + A.catBadge(cat.id) + metaBits.join("") + '</div>' +
+    (post.cover ? '<figure class="article-cover"><img src="' + A.esc(post.cover) + '" alt="" style="display:block;width:100%"></figure>' : "");
+
+  /* ---- 正文 ---- */
+  contentEl.innerHTML = A.md(post.content);
+  A.buildTOC(contentEl, document.getElementById("toc"));
+
+  /* ---- 上下篇 ---- */
+  var idx = list.indexOf(post);
+  if (list.length > 1) {
+    var newer = idx > 0 ? list[idx - 1] : null;
+    var older = idx < list.length - 1 ? list[idx + 1] : null;
+    var html = "";
+    html += newer
+      ? '<a href="' + A.postUrl(newer) + '"><span class="lbl">← 更新一篇</span><span class="ttl">' + A.esc(newer.title) + '</span></a>'
+      : '<span></span>';
+    html += older
+      ? '<a class="next" href="' + A.postUrl(older) + '"><span class="lbl">更早一篇 →</span><span class="ttl">' + A.esc(older.title) + '</span></a>'
+      : '<span></span>';
+    pagerEl.innerHTML = html;
+    pagerEl.hidden = false;
+  }
+})();
+</script>
+</body>
+</html>
